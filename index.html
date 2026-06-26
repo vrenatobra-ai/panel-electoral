@@ -1,219 +1,180 @@
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_AUTH_DOMAIN",
+  projectId: "TU_PROJECT_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DOC = db.collection("elections").doc("generic");
+</script>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resultados Electorales</title>
+<title>Panel Electoral</title>
 
 <style>
-body{
-  font-family: system-ui;
-  background:#f5f5f3;
-  margin:0;
-  padding:20px;
-  color:#1a1a18;
-}
-
-.container{
-  max-width:900px;
-  margin:auto;
-}
-
-.header{
-  text-align:center;
-  margin-bottom:20px;
-}
-
-.title{
-  font-size:22px;
-  font-weight:500;
-}
-
-.sub{
-  font-size:13px;
-  color:#5f5e5a;
-}
-
-.card{
-  background:#fff;
-  border:0.5px solid #e0dfd8;
-  border-radius:12px;
-  padding:14px;
-  margin-bottom:10px;
-}
-
-.bar{
-  height:10px;
-  background:#eee;
-  border-radius:6px;
-  overflow:hidden;
-  margin-top:6px;
-}
-
-.fill{
-  height:100%;
-  transition:0.5s;
-}
-
-.cand{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-
-.avatar{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  object-fit:cover;
-  border:0.5px solid #ddd;
-}
-
-.name{
-  font-weight:500;
-  font-size:14px;
-}
-
-.party{
-  font-size:12px;
-  color:#666;
-}
-
-.stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  margin:15px 0;
-}
-
-.stat{
-  background:#fff;
-  border:0.5px solid #e0dfd8;
-  padding:10px;
-  border-radius:10px;
-  text-align:center;
-}
-
-.stat b{
-  display:block;
-  font-size:16px;
-  margin-top:4px;
-}
-
-.boletin{
-  font-size:13px;
-  padding:8px 0;
-  border-bottom:0.5px solid #eee;
-}
+/* ====== TU CSS ORIGINAL (SIN CAMBIOS IMPORTANTES) ====== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui;background:#f5f5f3;color:#1a1a18}
+.app{max-width:900px;margin:auto;padding:1.5rem 1rem}
+.section{display:none}
+.section.active{display:block}
+.card{background:#fff;border:1px solid #e0dfd8;border-radius:12px;padding:1rem;margin-bottom:1rem}
+.field{margin-bottom:10px}
+input{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px}
+button{cursor:pointer}
+.save-btn{background:#1a1a18;color:#fff;padding:10px;border:none;width:100%;border-radius:8px}
+.tab-btns button{margin-right:6px}
+.tab-btn.active{background:#1a1a18;color:#fff}
+.pub-candidate{padding:10px;border:1px solid #ddd;border-radius:10px;margin-bottom:8px}
+.bar-wrap{height:8px;background:#eee;border-radius:5px}
+.bar-fill{height:100%}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="app">
 
-  <div class="header">
-    <div class="title" id="title">Resultados electorales</div>
-    <div class="sub" id="sub"></div>
+  <div class="tab-btns">
+    <button onclick="showTab('admin')" class="tab-btn active">Admin</button>
+    <button onclick="showTab('preview')" class="tab-btn">Vista pública</button>
   </div>
 
-  <div class="stats">
-    <div class="stat">
-      Padrón
-      <b id="padron">—</b>
+  <!-- ADMIN -->
+  <div id="admin" class="section active">
+
+    <div class="card">
+      <h2>Información</h2>
+      <input id="titulo" placeholder="Título">
+      <input id="padron" type="number" placeholder="Padrón">
+      <input id="total-votos" type="number" placeholder="Votos">
+      <input id="mesas-pct" type="number" placeholder="Mesas %">
+      <input id="ultima-act" type="datetime-local">
     </div>
-    <div class="stat">
-      Votos
-      <b id="votos">—</b>
+
+    <div class="card">
+      <h2>Candidatos</h2>
+      <div id="candidate-list"></div>
+      <button onclick="addCandidate()">+ Agregar</button>
     </div>
-    <div class="stat">
-      Participación
-      <b id="part">—</b>
-    </div>
+
+    <button class="save-btn" onclick="saveData()">Guardar</button>
   </div>
 
-  <div id="list"></div>
-
-  <div class="card" id="boletines" style="display:none"></div>
+  <!-- PUBLIC -->
+  <div id="preview" class="section">
+    <div id="pub"></div>
+  </div>
 
 </div>
 
 <script>
-const STORAGE_KEY = 'electoral_data_v1';
+let data = {titulo:"",padron:"",totalVotos:0,mesasPct:0,ultimaAct:"",candidates:[]};
 
-let data = null;
-
-async function load(){
-  const r = await window.storage.get(STORAGE_KEY, true);
-  if(!r || !r.value) return;
-
-  data = JSON.parse(r.value);
-  render();
+async function loadData(){
+  try{
+    const doc = await DOC.get();
+    if(doc.exists) data = doc.data();
+  }catch(e){}
+  renderAdmin();
+  renderPublic();
 }
 
-function render(){
+function renderAdmin(){
+  document.getElementById("titulo").value = data.titulo || "";
+  document.getElementById("padron").value = data.padron || "";
+  document.getElementById("total-votos").value = data.totalVotos || "";
+  document.getElementById("mesas-pct").value = data.mesasPct || "";
+  document.getElementById("ultima-act").value = data.ultimaAct || "";
 
-  if(!data) return;
-
-  document.getElementById("title").innerText = data.titulo || "Resultados electorales";
-
-  const totalVotos = data.totalVotos || 0;
-  const padron = data.padron || 0;
-
-  document.getElementById("padron").innerText = Number(padron).toLocaleString("es-CL");
-  document.getElementById("votos").innerText = Number(totalVotos).toLocaleString("es-CL");
-
-  const part = padron ? ((totalVotos/padron)*100).toFixed(1)+"%" : "—";
-  document.getElementById("part").innerText = part;
-
-  let max = 0;
-  (data.candidates||[]).forEach(c=>{
-    max = Math.max(max, Number(c.pct)||0);
-  });
-
-  const list = document.getElementById("list");
+  const list = document.getElementById("candidate-list");
   list.innerHTML = "";
 
-  (data.candidates||[]).forEach((c,i)=>{
-
-    const pct = Number(c.pct)||0;
-    const color = ["#378ADD","#D85A30","#1D9E75","#D4537E","#7F77DD","#639922"][i%6];
-
+  (data.candidates || []).forEach((c,i)=>{
     list.innerHTML += `
-      <div class="card">
-        <div class="cand">
-          ${c.img?`<img class="avatar" src="${c.img}">`:"<div class='avatar'></div>"}
-          <div style="flex:1">
-            <div class="name">${c.name||"Sin nombre"}</div>
-            <div class="party">${c.party||""}</div>
+      <div>
+        <input id="name-${i}" value="${c.name||""}" placeholder="Nombre">
+        <input id="votes-${i}" type="number" value="${c.votos||0}" placeholder="Votos">
+      </div>
+    `;
+  });
+}
 
-            <div class="bar">
-              <div class="fill" style="width:${pct}%;background:${color}"></div>
-            </div>
+function collect(){
+  data.titulo = titulo.value;
+  data.padron = Number(padron.value||0);
+  data.totalVotos = Number(total-votos.value||0);
+  data.mesasPct = Number(mesas-pct.value||0);
+  data.ultimaAct = ultima-act.value;
 
-            <div style="font-size:12px;color:#666;margin-top:4px">
-              ${Number(c.votos||0).toLocaleString("es-CL")} votos · ${pct.toFixed(3).replace(".",",")}%
-            </div>
+  (data.candidates||[]).forEach((c,i)=>{
+    c.name = document.getElementById(`name-${i}`)?.value || "";
+    c.votos = Number(document.getElementById(`votes-${i}`)?.value || 0);
+  });
 
-          </div>
+  let total = data.candidates.reduce((a,b)=>a+(b.votos||0),0);
+
+  data.candidates.forEach(c=>{
+    c.pct = total ? ((c.votos/total)*100).toFixed(3) : "0.000";
+  });
+
+  data.totalVotos = total;
+}
+
+async function saveData(){
+  collect();
+  try{
+    await DOC.set(data);
+    renderPublic();
+    alert("Guardado correctamente");
+  }catch(e){
+    alert("Error: "+e.message);
+  }
+}
+
+function addCandidate(){
+  data.candidates.push({name:"",votos:0,pct:"0.000"});
+  renderAdmin();
+}
+
+function renderPublic(){
+  const el = document.getElementById("pub");
+  if(!data.candidates.length){
+    el.innerHTML = "Sin datos";
+    return;
+  }
+
+  let html = "";
+  data.candidates.forEach(c=>{
+    html += `
+      <div class="pub-candidate">
+        <b>${c.name}</b><br>
+        ${c.votos} votos - ${c.pct}%
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:${c.pct}%;background:#378ADD"></div>
         </div>
       </div>
     `;
   });
 
-  if(data.boletines && data.boletines.length){
-    const b = data.boletines.filter(x=>x.texto);
-    if(b.length){
-      document.getElementById("boletines").style.display="block";
-      document.getElementById("boletines").innerHTML =
-        "<b>Actualizaciones</b><br><br>" +
-        b.reverse().map(x=>`<div class="boletin">${x.texto}</div>`).join("");
-    }
-  }
-
+  el.innerHTML = html;
 }
 
-load();
+function showTab(t){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(t).classList.add("active");
+}
+
+loadData();
 </script>
 
 </body>
