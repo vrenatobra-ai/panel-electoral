@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Electoral</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,system-ui);background:var(--surface-0,#f5f5f3);color:var(--text-primary,#1a1a18);min-height:100vh}
+.app{max-width:900px;margin:0 auto;padding:1.5rem 1rem}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.topbar h1{font-size:20px;font-weight:500}
+.tab-btns{display:flex;gap:6px}
+.tab-btn{padding:6px 14px;border:0.5px solid var(--border-strong,#c0bfb8);border-radius:var(--radius,8px);background:var(--surface-2,#fff);font-size:13px;cursor:pointer;color:var(--text-secondary,#5f5e5a)}
+.tab-btn.active{background:var(--text-primary,#1a1a18);color:#fff;border-color:var(--text-primary,#1a1a18)}
+.section{display:none}
+.section.active{display:block}
+
+/* Admin */
+.card{background:var(--surface-2,#fff);border:0.5px solid var(--border,#e0dfd8);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.card h2{font-size:15px;font-weight:500;margin-bottom:1rem;color:var(--text-primary)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--text-secondary,#5f5e5a);margin-bottom:4px}
+.field input,.field textarea{width:100%;padding:8px 10px;border:0.5px solid var(--border-strong,#c0bfb8);border-radius:var(--radius,8px);font-size:14px;background:var(--surface-2,#fff);color:var(--text-primary)}
+.field textarea{resize:vertical;min-height:70px;font-family:inherit}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.candidate-list{display:flex;flex-direction:column;gap:10px}
+.candidate-card{background:var(--surface-1,#f5f5f3);border:0.5px solid var(--border,#e0dfd8);border-radius:10px;padding:1rem;position:relative}
+.candidate-card h3{font-size:14px;font-weight:500;margin-bottom:10px;color:var(--text-secondary)}
+.del-btn{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted,#888);line-height:1}
+.add-btn{width:100%;padding:8px;border:1px dashed var(--border-strong,#c0bfb8);border-radius:10px;background:none;cursor:pointer;font-size:13px;color:var(--text-secondary);margin-top:6px}
+.add-btn:hover{background:var(--surface-1)}
+.save-btn{width:100%;padding:10px;background:var(--text-primary,#1a1a18);color:#fff;border:none;border-radius:var(--radius,8px);font-size:14px;cursor:pointer;font-weight:500;margin-top:4px}
+.save-btn:hover{opacity:0.85}
+.img-preview{width:48px;height:48px;border-radius:50%;object-fit:cover;border:0.5px solid var(--border)}
+.img-upload-area{display:flex;align-items:center;gap:10px}
+.img-upload-area input[type=file]{font-size:12px;flex:1}
+.boletines-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.boletin-item{display:flex;gap:8px;align-items:flex-start}
+.boletin-item input{flex:1;padding:7px 10px;border:0.5px solid var(--border-strong);border-radius:var(--radius);font-size:13px;background:var(--surface-2);color:var(--text-primary)}
+.rm-boletin{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:4px}
+.url-box{background:var(--surface-1);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:13px;word-break:break-all;color:var(--text-accent,#185fa5);margin-bottom:8px}
+.copy-btn{padding:7px 16px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);cursor:pointer;font-size:13px}
+.copy-btn:hover{background:var(--surface-1)}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+.status-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;padding:8px 12px;background:var(--bg-success,#eaf3de);border-radius:var(--radius);font-size:13px;color:var(--text-success,#3b6d11)}
+
+/* Public view */
+.pub{display:none}
+.pub.active-pub{display:block}
+.pub-header{text-align:center;margin-bottom:2rem}
+.pub-title{font-size:22px;font-weight:500;margin-bottom:4px}
+.pub-subtitle{font-size:14px;color:var(--text-secondary)}
+.pub-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat-card{background:var(--surface-2,#fff);border:0.5px solid var(--border);border-radius:12px;padding:1rem;text-align:center}
+.stat-label{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:500}
+.candidates-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:1.5rem}
+.pub-candidate{background:var(--surface-2,#fff);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;gap:14px}
+.pub-candidate .info{flex:1}
+.pub-cname{font-size:15px;font-weight:500}
+.pub-party{font-size:13px;color:var(--text-secondary);margin-bottom:6px}
+.bar-wrap{background:var(--surface-1,#f5f5f3);border-radius:4px;height:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease}
+.bar-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-top:4px}
+.winner-badge{font-size:11px;background:var(--bg-success,#eaf3de);color:var(--text-success,#3b6d11);border-radius:4px;padding:2px 7px;font-weight:500;margin-left:6px}
+.avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;border:0.5px solid var(--border)}
+.avatar-placeholder{width:48px;height:48px;border-radius:50%;background:var(--surface-1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.boletin-section{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem}
+.boletin-section h3{font-size:15px;font-weight:500;margin-bottom:12px}
+.boletin-entry{padding:8px 0;border-bottom:0.5px solid var(--border);font-size:14px;color:var(--text-primary)}
+.boletin-entry:last-child{border-bottom:none}
+.boletin-time{font-size:12px;color:var(--text-muted);margin-bottom:2px}
+.view-toggle{text-align:center;padding:2rem 0}
+.view-toggle p{font-size:14px;color:var(--text-secondary);margin-bottom:12px}
+.no-data{text-align:center;padding:3rem 1rem;color:var(--text-muted);font-size:14px}
+
+/* Colors for candidates */
+.color-1{background:#378ADD}
+.color-2{background:#D85A30}
+.color-3{background:#1D9E75}
+.color-4{background:#D4537E}
+.color-5{background:#7F77DD}
+.color-6{background:#639922}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>Panel Electoral</h1>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="showTab('admin')">Editar resultados</button>
+      <button class="tab-btn" onclick="showTab('preview')">Vista previa pública</button>
+    </div>
+  </div>
+
+  <!-- ADMIN SECTION -->
+  <div id="tab-admin" class="section active">
+
+    <div class="card">
+      <h2>Información general</h2>
+      <div class="field"><label>Título del evento electoral</label><input id="titulo" placeholder="Ej: Elecciones Presidenciales 2025" /></div>
+      <div class="row2">
+        <div class="field"><label>Padrón electoral total</label><input id="padron" type="number" placeholder="Ej: 15000000" /></div>
+        <div class="field"><label>Total de votos escrutados</label><input id="total-votos" type="number" placeholder="Ej: 8000000" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Mesas escrutadas (%)</label><input id="mesas-pct" type="number" min="0" max="100" step="0.1" placeholder="Ej: 65.4" /></div>
+        <div class="field"><label>Última actualización</label><input id="ultima-act" type="datetime-local" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Candidatos</h2>
+      <div class="candidate-list" id="candidate-list"></div>
+      <button class="add-btn" onclick="addCandidate()">+ Agregar candidato</button>
+    </div>
+
+    <div class="card">
+      <h2>Boletines / Actualizaciones</h2>
+      <div class="boletines-list" id="boletines-list"></div>
+      <button class="add-btn" onclick="addBoletin()">+ Agregar actualización</button>
+    </div>
+
+    <div class="card">
+      <h2>Compartir</h2>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Guarda los cambios y comparte esta URL. Los visitantes solo pueden ver, no editar.</p>
+      <div class="url-box" id="share-url">Guarda primero para obtener la URL</div>
+      <button class="copy-btn" onclick="copyUrl()">Copiar URL</button>
+    </div>
+
+    <button class="save-btn" onclick="saveData()">Guardar y publicar resultados</button>
+  </div>
+
+  <!-- PUBLIC PREVIEW SECTION -->
+  <div id="tab-preview" class="section">
+    <div id="pub-view"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'electoral_data_v1';
+let data = {titulo:'',padron:'',totalVotos:'',mesasPct:'',ultimaAct:'',candidates:[],boletines:[]};
+let candidateCounter = 0;
+
+async function loadData(){
+  try{
+    const r = await window.storage.get(STORAGE_KEY, true);
+    if(r && r.value){data=JSON.parse(r.value);}
+  }catch(e){}
+  renderAdmin();
+  renderPublic();
+  updateShareUrl();
+}
+
+function renderAdmin(){
+  document.getElementById('titulo').value=data.titulo||'';
+  document.getElementById('padron').value=data.padron||'';
+  document.getElementById('total-votos').value=data.totalVotos||'';
+  document.getElementById('mesas-pct').value=data.mesasPct||'';
+  document.getElementById('ultima-act').value=data.ultimaAct||'';
+  const list=document.getElementById('candidate-list');
+  list.innerHTML='';
+  (data.candidates||[]).forEach((c,i)=>renderCandidateCard(i,c));
+  const blist=document.getElementById('boletines-list');
+  blist.innerHTML='';
+  (data.boletines||[]).forEach((b,i)=>renderBoletinItem(i,b));
+}
+
+function renderCandidateCard(i,c){
+  const list=document.getElementById('candidate-list');
+  const div=document.createElement('div');
+  div.className='candidate-card';
+  div.id='cand-'+i;
+  div.innerHTML=`
+    <h3>Candidato ${i+1}</h3>
+    <button class="del-btn" onclick="removeCandidate(${i})">×</button>
+    <div class="row2">
+      <div class="field"><label>Nombre</label><input id="cname-${i}" value="${c.name||''}" placeholder="Nombre completo"/></div>
+      <div class="field"><label>Partido / Lista</label><input id="cparty-${i}" value="${c.party||''}" placeholder="Nombre del partido"/></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Votos obtenidos</label><input id="cvotos-${i}" type="number" value="${c.votos||''}" placeholder="Ej: 2500000" oninput="collectFormData();renderPublic();"/></div>
+      <div class="field"><label>Porcentaje</label><input id="cpct-${i}" type="number" step="0.01" value="${c.pct||''}" placeholder="Calculado automáticamente" readonly style="background:#f3f3f3"/></div>
+    </div>
+    <div class="field">
+      <label>Foto del candidato</label>
+      <div class="img-upload-area">
+        ${c.img?`<img class="img-preview" id="cprev-${i}" src="${c.img}"/>`:`<div class="img-preview" id="cprev-${i}" style="background:var(--surface-1);border-radius:50%;border:0.5px solid var(--border)"></div>`}
+        <input type="file" accept="image/*" onchange="loadImg(event,${i},'candidato')"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Logo del partido</label>
+      <div class="img-upload-area">
+        ${c.partyImg?`<img class="img-preview" id="pprev-${i}" src="${c.partyImg}" style="border-radius:6px"/>`:`<div class="img-preview" id="pprev-${i}" style="background:var(--surface-1);border-radius:6px;border:0.5px solid var(--border)"></div>`}
+        <input type="file" accept="image/*" onchange="loadImg(event,${i},'partido')"/>
+      </div>
+    </div>
+  `;
+  list.appendChild(div);
+}
+
+function renderBoletinItem(i,b){
+  const list=document.getElementById('boletines-list');
+  const div=document.createElement('div');
+  div.className='boletin-item';
+  div.innerHTML=`
+    <input id="boletin-${i}" value="${(b.texto||'').replace(/"/g,'&quot;')}" placeholder="Texto del boletín o actualización"/>
+    <button class="rm-boletin" onclick="removeBoletin(${i})">×</button>
+  `;
+  list.appendChild(div);
+}
+
+function addCandidate(){
+  if(!data.candidates)data.candidates=[];
+  data.candidates.push({name:'',party:'',votos:'',pct:'',img:'',partyImg:''});
+  renderAdmin();
+}
+
+function removeCandidate(i){
+  data.candidates.splice(i,1);
+  renderAdmin();
+}
+
+function addBoletin(){
+  if(!data.boletines)data.boletines=[];
+  data.boletines.push({texto:'',time:new Date().toISOString()});
+  renderAdmin();
+}
+
+function removeBoletin(i){
+  data.boletines.splice(i,1);
+  renderAdmin();
+}
+
+function loadImg(event,i,tipo){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const base64=e.target.result;
+    if(tipo==='candidato'){
+      if(!data.candidates[i])data.candidates[i]={};
+      data.candidates[i].img=base64;
+      const el=document.getElementById('cprev-'+i);
+      if(el){el.outerHTML=`<img class="img-preview" id="cprev-${i}" src="${base64}"/>`;}
+    } else {
+      if(!data.candidates[i])data.candidates[i]={};
+      data.candidates[i].partyImg=base64;
+      const el=document.getElementById('pprev-'+i);
+      if(el){el.outerHTML=`<img class="img-preview" id="pprev-${i}" src="${base64}" style="border-radius:6px"/>`;}
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function collectFormData(){
+  data.titulo=document.getElementById('titulo').value;
+  data.padron=document.getElementById('padron').value;
+  data.totalVotos=document.getElementById('total-votos').value;
+  data.mesasPct=document.getElementById('mesas-pct').value;
+  data.ultimaAct=document.getElementById('ultima-act').value;
+  (data.candidates||[]).forEach((c,i)=>{
+    c.name=document.getElementById('cname-'+i)?.value||c.name;
+    c.party=document.getElementById('cparty-'+i)?.value||c.party;
+    c.votos=parseInt(document.getElementById('cvotos-'+i)?.value||0);
+    if(isNaN(c.votos)) c.votos=0;
+  });
+  let totalVotosCandidatos=0;
+  (data.candidates||[]).forEach(c=>totalVotosCandidatos+=Number(c.votos)||0);
+  (data.candidates||[]).forEach((c,i)=>{
+    c.pct=totalVotosCandidatos?((c.votos/totalVotosCandidatos)*100).toFixed(3):"0.000";
+    const f=document.getElementById('cpct-'+i);
+    if(f)f.value=c.pct.replace(".",",");
+  });
+  data.totalVotos=totalVotosCandidatos;
+  document.getElementById('total-votos').value=totalVotosCandidatos;
+
+  (data.boletines||[]).forEach((b,i)=>{
+    b.texto=document.getElementById('boletin-'+i)?.value||b.texto;
+    if(!b.time)b.time=new Date().toISOString();
+  });
+}
+
+async function saveData(){
+  collectFormData();
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(data), true);
+    showToast('Resultados guardados y publicados');
+    updateShareUrl();
+    renderPublic();
+  }catch(e){showToast('Error al guardar: '+e.message);}
+}
+
+function updateShareUrl(){
+  const url=window.location.href.split('?')[0]+'?view=public';
+  document.getElementById('share-url').textContent=url;
+}
+
+function copyUrl(){
+  const url=document.getElementById('share-url').textContent;
+  navigator.clipboard.writeText(url).then(()=>showToast('URL copiada')).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    showToast('URL copiada');
+  });
+}
+
+const COLORS=['#378ADD','#D85A30','#1D9E75','#D4537E','#7F77DD','#639922'];
+
+function renderPublic(){
+  const container=document.getElementById('pub-view');
+  if(!data.titulo && (!data.candidates||!data.candidates.length)){
+    container.innerHTML='<div class="no-data">No hay datos publicados aún. Ve a "Editar resultados" para ingresar la información.</div>';
+    return;
+  }
+  const cands=data.candidates||[];
+  const maxPct=cands.reduce((m,c)=>Math.max(m,parseFloat(c.pct)||0),0);
+  const fmtNum=n=>n?Number(n).toLocaleString('es-CL'):'—';
+  const fmtDate=s=>{if(!s)return '';try{return new Date(s).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return s;}};
+  let candidatesHTML=cands.map((c,i)=>{
+    const pct=parseFloat(c.pct)||0;
+    const isWinner=pct===maxPct&&pct>0;
+    const col=COLORS[i%COLORS.length];
+    const avatar=c.img?`<img class="avatar" src="${c.img}" alt="${c.name}"/>`:`<div class="avatar-placeholder">👤</div>`;
+    const partyLogo=c.partyImg?`<img src="${c.partyImg}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-left:4px" alt="partido"/>` :'';
+    return `
+      <div class="pub-candidate">
+        ${avatar}
+        <div class="info">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+            <span class="pub-cname">${c.name||'Sin nombre'}</span>
+            ${isWinner?'<span class="winner-badge">Venciendo</span>':''}
+          </div>
+          <div class="pub-party">${c.party||''}${partyLogo}</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+          <div class="bar-labels"><span>${fmtNum(c.votos)} votos</span><span style="font-weight:500">${pct.toFixed(3).replace('.',',')}%</span></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const boletines=data.boletines||[];
+  let boletinHTML='';
+  if(boletines.filter(b=>b.texto).length>0){
+    boletinHTML=`
+      <div class="boletin-section">
+        <h3>Actualizaciones</h3>
+        ${boletines.filter(b=>b.texto).reverse().map(b=>`
+          <div class="boletin-entry">
+            <div class="boletin-time">${fmtDate(b.time)}</div>
+            <div>${b.texto}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  container.innerHTML=`
+    <div class="pub-header">
+      <div class="pub-title">${data.titulo||'Resultados electorales'}</div>
+      <div class="pub-subtitle">Actualizado: ${fmtDate(data.ultimaAct)||'—'} · Mesas escrutadas: ${data.mesasPct||'—'}%</div>
+    </div>
+    <div class="pub-stats">
+      <div class="stat-card"><div class="stat-label">Padrón electoral</div><div class="stat-val">${fmtNum(data.padron)}</div></div>
+      <div class="stat-card"><div class="stat-label">Votos escrutados</div><div class="stat-val">${fmtNum(data.totalVotos)}</div></div>
+      <div class="stat-card"><div class="stat-label">Participación</div><div class="stat-val">${data.padron&&data.totalVotos?(parseFloat(data.totalVotos)/parseFloat(data.padron)*100).toFixed(1)+'%':'—'}</div></div>
+    </div>
+    <div class="candidates-grid">${candidatesHTML||'<div class="no-data">Sin candidatos registrados</div>'}</div>
+    ${boletinHTML}
+  `;
+}
+
+function showTab(tab){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  if(tab==='preview'){
+    collectFormData();
+    renderPublic();
+    document.getElementById('tab-preview').classList.add('active');
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+  } else {
+    document.getElementById('tab-admin').classList.add('active');
+    document.querySelectorAll('.tab-btn')[0].classList.add('active');
+  }
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+loadData();
+</script>
+</body>
+</html>
