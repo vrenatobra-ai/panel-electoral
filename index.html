@@ -1,18 +1,3 @@
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_AUTH_DOMAIN",
-  projectId: "TU_PROJECT_ID"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const DOC = db.collection("elections").doc("generic");
-</script>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -20,15 +5,16 @@ const DOC = db.collection("elections").doc("generic");
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel Electoral</title>
 
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
 <style>
-/* ====== TU CSS ORIGINAL (SIN CAMBIOS IMPORTANTES) ====== */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui;background:#f5f5f3;color:#1a1a18}
 .app{max-width:900px;margin:auto;padding:1.5rem 1rem}
 .section{display:none}
 .section.active{display:block}
 .card{background:#fff;border:1px solid #e0dfd8;border-radius:12px;padding:1rem;margin-bottom:1rem}
-.field{margin-bottom:10px}
 input{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px}
 button{cursor:pointer}
 .save-btn{background:#1a1a18;color:#fff;padding:10px;border:none;width:100%;border-radius:8px}
@@ -78,13 +64,30 @@ button{cursor:pointer}
 </div>
 
 <script>
-let data = {titulo:"",padron:"",totalVotos:0,mesasPct:0,ultimaAct:"",candidates:[]};
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_AUTH_DOMAIN",
+  projectId: "TU_PROJECT_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DOC = db.collection("elections").doc("generic");
+
+let data = {
+  titulo:"",
+  padron:0,
+  totalVotos:0,
+  mesasPct:0,
+  ultimaAct:"",
+  candidates:[]
+};
 
 async function loadData(){
   try{
     const doc = await DOC.get();
     if(doc.exists) data = doc.data();
-  }catch(e){}
+  }catch(e){console.log(e);}
   renderAdmin();
   renderPublic();
 }
@@ -101,7 +104,7 @@ function renderAdmin(){
 
   (data.candidates || []).forEach((c,i)=>{
     list.innerHTML += `
-      <div>
+      <div class="card">
         <input id="name-${i}" value="${c.name||""}" placeholder="Nombre">
         <input id="votes-${i}" type="number" value="${c.votos||0}" placeholder="Votos">
       </div>
@@ -109,19 +112,25 @@ function renderAdmin(){
   });
 }
 
-function collect(){
-  data.titulo = titulo.value;
-  data.padron = Number(padron.value||0);
-  data.totalVotos = Number(total-votos.value||0);
-  data.mesasPct = Number(mesas-pct.value||0);
-  data.ultimaAct = ultima-act.value;
+function addCandidate(){
+  data.candidates.push({name:"",votos:0,pct:"0.000"});
+  renderAdmin();
+}
 
-  (data.candidates||[]).forEach((c,i)=>{
+function collect(){
+  data.titulo = document.getElementById("titulo").value || "";
+  data.padron = Number(document.getElementById("padron").value || 0);
+  data.totalVotos = Number(document.getElementById("total-votos").value || 0);
+  data.mesasPct = Number(document.getElementById("mesas-pct").value || 0);
+  data.ultimaAct = document.getElementById("ultima-act").value || "";
+
+  let total = 0;
+
+  data.candidates.forEach((c,i)=>{
     c.name = document.getElementById(`name-${i}`)?.value || "";
     c.votos = Number(document.getElementById(`votes-${i}`)?.value || 0);
+    total += c.votos;
   });
-
-  let total = data.candidates.reduce((a,b)=>a+(b.votos||0),0);
 
   data.candidates.forEach(c=>{
     c.pct = total ? ((c.votos/total)*100).toFixed(3) : "0.000";
@@ -132,30 +141,26 @@ function collect(){
 
 async function saveData(){
   collect();
-  try{
-    await DOC.set(data);
-    renderPublic();
-    alert("Guardado correctamente");
-  }catch(e){
-    alert("Error: "+e.message);
-  }
-}
 
-function addCandidate(){
-  data.candidates.push({name:"",votos:0,pct:"0.000"});
-  renderAdmin();
+  try{
+    await DOC.set(data, {merge:true});
+    renderPublic();
+    alert("Guardado en Firebase ✔");
+  }catch(e){
+    alert("Error: " + e.message);
+  }
 }
 
 function renderPublic(){
   const el = document.getElementById("pub");
+
   if(!data.candidates.length){
     el.innerHTML = "Sin datos";
     return;
   }
 
-  let html = "";
-  data.candidates.forEach(c=>{
-    html += `
+  el.innerHTML = data.candidates.map(c=>{
+    return `
       <div class="pub-candidate">
         <b>${c.name}</b><br>
         ${c.votos} votos - ${c.pct}%
@@ -164,9 +169,7 @@ function renderPublic(){
         </div>
       </div>
     `;
-  });
-
-  el.innerHTML = html;
+  }).join("");
 }
 
 function showTab(t){
